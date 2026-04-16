@@ -62,5 +62,6 @@ export function getSettings() {
     clockifyWorkspaceId: config.get<string>("clockifyWorkspaceId", ""),
     clickupTeamId: config.get<string>("clickupTeamId", ""),
     projectMapping: config.get<Record<string, string>>("projectMapping", {}),
+    entryDescriptionLanguage: config.get<"english" | "italian">("entryDescriptionLanguage", "english"),
   };
 }

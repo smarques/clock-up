@@ -155,13 +155,17 @@ async function getTasks(
   return data.tasks;
 }
 
+export interface TaskGroup {
+  list: ClickUpList;
+  tasks: ClickUpTask[];
+}
+
 export async function getTasksFromFolder(
   apiKey: string,
   folderId: string
-): Promise<ClickUpTask[]> {
+): Promise<TaskGroup[]> {
   const lists = await getFolderLists(apiKey, folderId);
-  const taskArrays = await Promise.all(
-    lists.map((l) => getTasks(apiKey, l.id))
+  return Promise.all(
+    lists.map(async (list) => ({ list, tasks: await getTasks(apiKey, list.id) }))
   );
-  return taskArrays.flat();
 }

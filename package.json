@@ -32,6 +32,12 @@
           "type": "string",
           "default": "",
           "markdownDescription": "_(Read-only)_ Obfuscated preview of your Clockify API key. Set it via **Clock Up: Set Clockify API Key**."
+        },
+        "clockup.entryDescriptionLanguage": {
+          "type": "string",
+          "enum": ["english", "italian"],
+          "default": "english",
+          "description": "Language used when generating time entry descriptions via Copilot."
         }
       }
     },
@@ -68,6 +74,11 @@
         "command": "clockup.showDescription",
         "title": "Clock Up: Show Task Description",
         "icon": "$(info)"
+      },
+      {
+        "command": "clockup.searchTasks",
+        "title": "Clock Up: Search Tasks",
+        "icon": "$(search)"
       }
     ],
     "viewsContainers": {
@@ -90,6 +101,11 @@
     "menus": {
       "view/title": [
         {
+          "command": "clockup.searchTasks",
+          "when": "view == clockup.tasksView",
+          "group": "navigation"
+        },
+        {
           "command": "clockup.selectProjects",
           "when": "view == clockup.tasksView",
           "group": "navigation"
@@ -105,11 +121,6 @@
           "command": "clockup.startTimer",
           "when": "view == clockup.tasksView && viewItem == task",
           "group": "inline@1"
-        },
-        {
-          "command": "clockup.showDescription",
-          "when": "view == clockup.tasksView && viewItem == task",
-          "group": "inline@2"
         }
       ]
     }

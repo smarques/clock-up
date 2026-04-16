@@ -11,10 +11,11 @@ export function activate(context: vscode.ExtensionContext): void {
     () => getSelectedProject(context)
   );
 
-  vscode.window.createTreeView("clockup.tasksView", {
+  const treeView = vscode.window.createTreeView("clockup.tasksView", {
     treeDataProvider: treeProvider,
     showCollapseAll: true,
   });
+  context.subscriptions.push(treeView);
 
   const statusBar = new TimerStatusBar(context);
 
@@ -23,7 +24,7 @@ export function activate(context: vscode.ExtensionContext): void {
     statusBar.start();
   }
 
-  registerCommands(context, statusBar, () => treeProvider.refresh());
+  registerCommands(context, statusBar, treeProvider, treeView);
 }
 
 export function deactivate(): void {

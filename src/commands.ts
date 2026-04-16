@@ -15,14 +15,18 @@ import {
 } from "./state/timerState";
 import { createTimeEntry, getProjects } from "./api/clockify";
 import { getAllFolders, ClickUpTask, ClickUpCustomField } from "./api/clickup";
-import { TaskTreeItem } from "./views/taskTreeProvider";
+import { TaskTreeItem, TaskTreeProvider } from "./views/taskTreeProvider";
 import { TimerStatusBar } from "./views/timerStatusBar";
+
+let activeDescriptionPanel: vscode.WebviewPanel | undefined;
 
 export function registerCommands(
   context: vscode.ExtensionContext,
   statusBar: TimerStatusBar,
-  refreshTree: () => void
+  treeProvider: TaskTreeProvider,
+  treeView: vscode.TreeView<TaskTreeItem>
 ): void {
+  const refreshTree = () => treeProvider.refresh();
   context.subscriptions.push(
     vscode.commands.registerCommand("clockup.setClickUpApiKey", () =>
       setClickUpApiKey(context)
@@ -59,7 +63,8 @@ export function registerCommands(
         }
 
         const startTime = new Date().toISOString();
-        const entryTitle = await generateEntryTitle(item.id, item.label as string);
+        const { entryDescriptionLanguage } = getSettings();
+        const entryTitle = await generateEntryTitle(item.id, item.label as string, entryDescriptionLanguage);
 
         await saveActiveTimer(context, {
           taskId: item.id,
@@ -85,6 +90,78 @@ export function registerCommands(
 
     vscode.commands.registerCommand("clockup.refreshTasks", refreshTree),
 
+    vscode.commands.registerCommand("clockup.searchTasks", async () => {
+      let tasks: ClickUpTask[];
+      try {
+        tasks = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Clock Up: Loading tasks…",
+          },
+          () => treeProvider.getOrFetchAllTasks()
+        );
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Clock Up: ${err instanceof Error ? err.message : err}`
+        );
+        return;
+      }
+
+      if (tasks.length === 0) {
+        vscode.window.showInformationMessage(
+          "No tasks found. Select a project first."
+        );
+        return;
+      }
+
+      const parentById = new Map(tasks.map((t) => [t.id, t]));
+
+      type TaskPickItem = vscode.QuickPickItem & { task: ClickUpTask };
+
+      const items: TaskPickItem[] = tasks.map((t) => {
+        const isSubtask = !!t.parent;
+        const parent = t.parent ? parentById.get(t.parent) : undefined;
+        return {
+          label: `$(${isSubtask ? "circle-small-filled" : "circle-outline"}) ${t.name}`,
+          description: [t.list.name, parent?.name].filter(Boolean).join("  ·  "),
+          detail: t.status.status,
+          task: t,
+        };
+      });
+
+      const picked = await vscode.window.showQuickPick<TaskPickItem>(items, {
+        title: "Clock Up: Search Tasks",
+        placeHolder: "Type to filter by name, sprint, or status…",
+        matchOnDescription: true,
+        matchOnDetail: true,
+      });
+
+      if (!picked) {
+        return;
+      }
+
+      if (activeDescriptionPanel) {
+        activeDescriptionPanel.dispose();
+      }
+
+      activeDescriptionPanel = vscode.window.createWebviewPanel(
+        "clockup.taskDescription",
+        panelTitle(picked.task.name),
+        vscode.ViewColumn.Beside,
+        { enableScripts: false }
+      );
+      activeDescriptionPanel.webview.html = buildDescriptionHtml(picked.task);
+      activeDescriptionPanel.onDidDispose(() => {
+        activeDescriptionPanel = undefined;
+      });
+
+      treeView.reveal(treeProvider.itemForTask(picked.task), {
+        select: true,
+        focus: false,
+        expand: true,
+      });
+    }),
+
     vscode.commands.registerCommand(
       "clockup.showDescription",
       (item: TaskTreeItem) => {
@@ -93,20 +170,30 @@ export function registerCommands(
           return;
         }
 
-        const panel = vscode.window.createWebviewPanel(
+        if (activeDescriptionPanel) {
+          activeDescriptionPanel.dispose();
+        }
+
+        activeDescriptionPanel = vscode.window.createWebviewPanel(
           "clockup.taskDescription",
-          item.label as string,
+          panelTitle(item.label as string),
           vscode.ViewColumn.Beside,
           { enableScripts: false }
         );
-
-        panel.webview.html = buildDescriptionHtml(item.raw);
+        activeDescriptionPanel.webview.html = buildDescriptionHtml(item.raw);
+        activeDescriptionPanel.onDidDispose(() => {
+          activeDescriptionPanel = undefined;
+        });
       }
     )
   );
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+function panelTitle(name: string, maxLen = 40): string {
+  return name.length > maxLen ? name.slice(0, maxLen - 1) + "…" : name;
+}
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -312,21 +399,20 @@ function buildDescriptionHtml(task: ClickUpTask): string {
       max-width: 800px;
     }
     .header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 16px;
       border-bottom: 1px solid var(--vscode-panel-border);
       padding-bottom: 10px;
       margin-bottom: 16px;
     }
-    h2 { font-size: 1.15em; margin: 0; }
+    h2 {
+      font-size: 1.15em;
+      margin: 0 0 6px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
     .open-link {
       font-size: 0.85em;
       color: var(--vscode-textLink-foreground);
       text-decoration: none;
-      white-space: nowrap;
-      flex-shrink: 0;
     }
     .open-link:hover { text-decoration: underline; }
     .meta-grid {
@@ -516,7 +602,7 @@ async function selectProjects(
   );
 }
 
-async function generateEntryTitle(taskId: string, taskName: string): Promise<string> {
+async function generateEntryTitle(taskId: string, taskName: string, language: "english" | "italian"): Promise<string> {
   const prefix = `#${taskId}`;
   const fallback = `${prefix} ${taskName.trim().split(/\s+/).slice(0, 10).join(" ")}`;
 
@@ -530,8 +616,8 @@ async function generateEntryTitle(taskId: string, taskName: string): Promise<str
     const response = await models[0].sendRequest(
       [
         vscode.LanguageModelChatMessage.User(
-          `Write a concise 10-word description for a time tracking entry based on this task name.\n` +
-          `Reply with ONLY the 10 words, no punctuation, no extra text.\n\n` +
+          `Write a concise 10-word description in ${language} for a time tracking entry based on this task name.\n` +
+          `Reply with ONLY the 10 words in ${language}, no punctuation, no extra text.\n\n` +
           `Task: ${taskName}`
         ),
       ],

@@ -43,7 +43,7 @@ export class TimerStatusBar {
     const mm = String(minutes).padStart(2, "0");
     const ss = String(seconds).padStart(2, "0");
 
-    this.item.text = `$(clock) ${hh}:${mm}:${ss}  ${timer.taskName}`;
+    this.item.text = `$(clock) ${hh}:${mm}:${ss}  #${timer.taskId}`;
     this.item.tooltip = `Tracking: ${timer.taskName}\nClick to stop`;
     this.item.backgroundColor = new vscode.ThemeColor(
       "statusBarItem.warningBackground"
