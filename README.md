@@ -2,6 +2,8 @@
 
 Track time on ClickUp tasks directly from VS Code, with entries logged automatically to Clockify.
 
+![Clock Up](resources/Clockup%20ScreenShot.png)
+
 ## Features
 
 - **Task tree in the Activity Bar** — browse all tasks and subtasks from your selected ClickUp folder without leaving the editor
