@@ -58,14 +58,15 @@ export function registerCommands(
           await stopAndSave(context, statusBar);
         }
 
-        const entryTitle = formatEntryTitle(item.id, item.label as string);
+        const startTime = new Date().toISOString();
+        const entryTitle = await generateEntryTitle(item.id, item.label as string);
 
         await saveActiveTimer(context, {
           taskId: item.id,
           taskName: item.label as string,
           entryTitle,
           clockifyProjectId: selected.clockifyProjectId,
-          startTime: new Date().toISOString(),
+          startTime,
         });
 
         statusBar.start();
@@ -177,9 +178,39 @@ async function selectProjects(
   );
 }
 
-function formatEntryTitle(taskId: string, taskName: string): string {
-  const words = taskName.trim().split(/\s+/).slice(0, 5).join(" ");
-  return `#${taskId} ${words}`;
+async function generateEntryTitle(taskId: string, taskName: string): Promise<string> {
+  const prefix = `#${taskId}`;
+  const fallback = `${prefix} ${taskName.trim().split(/\s+/).slice(0, 10).join(" ")}`;
+
+  try {
+    const models = await vscode.lm.selectChatModels({ vendor: "copilot" });
+    if (models.length === 0) {
+      return fallback;
+    }
+
+    const tokenSource = new vscode.CancellationTokenSource();
+    const response = await models[0].sendRequest(
+      [
+        vscode.LanguageModelChatMessage.User(
+          `Write a concise 10-word description for a time tracking entry based on this task name.\n` +
+          `Reply with ONLY the 10 words, no punctuation, no extra text.\n\n` +
+          `Task: ${taskName}`
+        ),
+      ],
+      {},
+      tokenSource.token
+    );
+
+    let description = "";
+    for await (const chunk of response.text) {
+      description += chunk;
+    }
+
+    const trimmed = description.trim();
+    return trimmed ? `${prefix} ${trimmed}` : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 async function stopAndSave(

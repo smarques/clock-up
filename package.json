@@ -4,7 +4,7 @@
   "description": "Track time on ClickUp tasks directly in VSCode via Clockify",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.90.0"
   },
   "categories": ["Other"],
   "activationEvents": [],
@@ -113,7 +113,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "esbuild": "^0.20.0",
