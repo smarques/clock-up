@@ -2,6 +2,18 @@
 
 Track time on ClickUp tasks directly from VS Code, with entries logged automatically to Clockify.
 
+## Features
+
+- **Task tree in the Activity Bar** — browse all tasks and subtasks from your selected ClickUp folder without leaving the editor
+- **One-click timer** — hit `▶` on any task or subtask to start tracking instantly
+- **Live status bar** — elapsed time and task name visible at a glance; click to stop
+- **Auto-generated entry titles** — uses GitHub Copilot (if available) to write a concise description in English or Italian; falls back to `#taskId first words of task name`
+- **Task search** — fuzzy-search across all tasks by name, sprint, or status via Quick Pick
+- **Task detail panel** — view status, priority, due date, estimate, assignees, tags, custom fields, description, and checklists in a side panel
+- **Clockify integration** — time entries are created automatically with correct start/end times and project association
+- **Secure key storage** — API keys are stored in the OS keychain via VS Code SecretStorage, never in plain settings
+- **Survives restarts** — active timer state is persisted across VS Code sessions
+
 ## Requirements
 
 - A [ClickUp](https://clickup.com) account with API access
@@ -52,7 +64,7 @@ Open the **Clock Up** panel in the Activity Bar. It shows all tasks and subtasks
 - **Stop timer:** Click the status bar item at the bottom of the window (shows elapsed time and task name)
 
 When you stop the timer, a time entry is created in Clockify with:
-- **Description:** `#<taskId> <first five words of task name>`
+- **Description:** AI-generated summary, or `#<taskId> <first words of task name>` as fallback
 - **Project:** your selected Clockify project
 - **Start/end times:** the actual tracked interval
 
@@ -66,9 +78,15 @@ When you stop the timer, a time entry is created in Clockify with:
 | `Clock Up: Start Timer` | Start tracking the selected task |
 | `Clock Up: Stop Timer` | Stop tracking and log the entry to Clockify |
 | `Clock Up: Refresh Tasks` | Re-fetch the task list |
+| `Clock Up: Search Tasks` | Fuzzy-search all tasks by name, sprint, or status |
+| `Clock Up: Show Task Description` | Open the task detail panel |
 
 ## Notes
 
 - Timer state is persisted across VS Code restarts — you can close and reopen VS Code without losing an active timer
 - Subtasks are shown nested under their parent task
 - Tasks are fetched from all lists inside the selected ClickUp folder
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
