@@ -21,11 +21,60 @@ export interface ClickUpList {
   name: string;
 }
 
+export interface ClickUpAssignee {
+  id: number;
+  username: string;
+  color: string;
+  email: string;
+  profilePicture?: string | null;
+}
+
+export interface ClickUpPriority {
+  id: string;
+  priority: string;
+  color: string;
+  orderindex: string;
+}
+
+export interface ClickUpChecklistItem {
+  id: string;
+  name: string;
+  resolved: boolean;
+  orderindex: number;
+}
+
+export interface ClickUpChecklist {
+  id: string;
+  name: string;
+  orderindex: number;
+  items: ClickUpChecklistItem[];
+}
+
+export interface ClickUpCustomField {
+  id: string;
+  name: string;
+  type: string;
+  value?: unknown;
+  type_config?: {
+    options?: Array<{ id: string; name: string; color?: string; orderindex: number }>;
+  };
+}
+
 export interface ClickUpTask {
   id: string;
   name: string;
+  description?: string;
   status: { status: string; color: string };
+  priority?: ClickUpPriority | null;
+  due_date?: string | null;
+  start_date?: string | null;
+  time_estimate?: number | null;
+  assignees?: ClickUpAssignee[];
+  tags?: Array<{ name: string; tag_fg: string; tag_bg: string }>;
+  checklists?: ClickUpChecklist[];
+  custom_fields?: ClickUpCustomField[];
   list: { id: string; name: string };
+  folder?: { id: string; name: string };
   parent?: string;
   url: string;
 }

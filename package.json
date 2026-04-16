@@ -63,6 +63,11 @@
         "command": "clockup.refreshTasks",
         "title": "Clock Up: Refresh Tasks",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "clockup.showDescription",
+        "title": "Clock Up: Show Task Description",
+        "icon": "$(info)"
       }
     ],
     "viewsContainers": {
@@ -99,7 +104,12 @@
         {
           "command": "clockup.startTimer",
           "when": "view == clockup.tasksView && viewItem == task",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "clockup.showDescription",
+          "when": "view == clockup.tasksView && viewItem == task",
+          "group": "inline@2"
         }
       ]
     }

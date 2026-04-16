@@ -14,7 +14,7 @@ import {
   getSelectedProject,
 } from "./state/timerState";
 import { createTimeEntry, getProjects } from "./api/clockify";
-import { getAllFolders } from "./api/clickup";
+import { getAllFolders, ClickUpTask, ClickUpCustomField } from "./api/clickup";
 import { TaskTreeItem } from "./views/taskTreeProvider";
 import { TimerStatusBar } from "./views/timerStatusBar";
 
@@ -83,8 +83,346 @@ export function registerCommands(
       await stopAndSave(context, statusBar);
     }),
 
-    vscode.commands.registerCommand("clockup.refreshTasks", refreshTree)
+    vscode.commands.registerCommand("clockup.refreshTasks", refreshTree),
+
+    vscode.commands.registerCommand(
+      "clockup.showDescription",
+      (item: TaskTreeItem) => {
+        if (!item.raw) {
+          vscode.window.showInformationMessage("No task data available.");
+          return;
+        }
+
+        const panel = vscode.window.createWebviewPanel(
+          "clockup.taskDescription",
+          item.label as string,
+          vscode.ViewColumn.Beside,
+          { enableScripts: false }
+        );
+
+        panel.webview.html = buildDescriptionHtml(item.raw);
+      }
+    )
   );
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formatMs(ms: number): string {
+  const totalMin = Math.round(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function formatDate(tsMs: string): string {
+  return new Date(Number(tsMs)).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatCustomFieldValue(field: ClickUpCustomField): string | null {
+  const v = field.value;
+  if (v === null || v === undefined || v === "") {
+    return null;
+  }
+  switch (field.type) {
+    case "drop_down": {
+      const idx = typeof v === "number" ? v : Number(v);
+      const opt = field.type_config?.options?.find((o) => o.orderindex === idx);
+      return opt?.name ?? String(v);
+    }
+    case "labels": {
+      const ids = Array.isArray(v) ? (v as string[]) : [];
+      const names = ids.map(
+        (id) => field.type_config?.options?.find((o) => o.id === id)?.name ?? id
+      );
+      return names.length ? names.join(", ") : null;
+    }
+    case "checkbox":
+      return v ? "✓ Yes" : "✗ No";
+    case "date":
+      return typeof v === "string" || typeof v === "number"
+        ? formatDate(String(v))
+        : null;
+    case "users": {
+      const users = Array.isArray(v) ? v : [v];
+      const names = users
+        .map((u) =>
+          u && typeof u === "object" && "username" in u
+            ? (u as { username: string }).username
+            : null
+        )
+        .filter(Boolean);
+      return names.length ? names.join(", ") : null;
+    }
+    default:
+      if (typeof v === "string") { return v || null; }
+      if (typeof v === "number") { return String(v); }
+      return null;
+  }
+}
+
+function buildDescriptionHtml(task: ClickUpTask): string {
+  // ── metadata chips ────────────────────────────────────────────────────────
+  const metaRows: string[] = [];
+
+  // Status
+  metaRows.push(
+    `<div class="meta-item">
+      <span class="meta-label">Status</span>
+      <span class="badge" style="background:${esc(task.status.color)};color:#fff">
+        ${esc(task.status.status)}
+      </span>
+    </div>`
+  );
+
+  // Priority
+  if (task.priority) {
+    metaRows.push(
+      `<div class="meta-item">
+        <span class="meta-label">Priority</span>
+        <span class="badge" style="background:${esc(task.priority.color)};color:#fff">
+          ${esc(task.priority.priority)}
+        </span>
+      </div>`
+    );
+  }
+
+  // Due date
+  if (task.due_date) {
+    metaRows.push(
+      `<div class="meta-item">
+        <span class="meta-label">Due date</span>
+        <span class="meta-value">${esc(formatDate(task.due_date))}</span>
+      </div>`
+    );
+  }
+
+  // Time estimate
+  if (task.time_estimate) {
+    metaRows.push(
+      `<div class="meta-item">
+        <span class="meta-label">Estimate</span>
+        <span class="meta-value">${esc(formatMs(task.time_estimate))}</span>
+      </div>`
+    );
+  }
+
+  // Sprint (list name — in sprint workflows each list is a sprint)
+  if (task.list?.name) {
+    metaRows.push(
+      `<div class="meta-item">
+        <span class="meta-label">Sprint / List</span>
+        <span class="meta-value">${esc(task.list.name)}</span>
+      </div>`
+    );
+  }
+
+  // Assignees
+  if (task.assignees?.length) {
+    const names = task.assignees.map((a) => esc(a.username)).join(", ");
+    metaRows.push(
+      `<div class="meta-item">
+        <span class="meta-label">Assignees</span>
+        <span class="meta-value">${names}</span>
+      </div>`
+    );
+  }
+
+  // Tags
+  if (task.tags?.length) {
+    const tagHtml = task.tags
+      .map(
+        (t) =>
+          `<span class="badge tag" style="background:${esc(t.tag_bg)};color:${esc(t.tag_fg)}">${esc(t.name)}</span>`
+      )
+      .join(" ");
+    metaRows.push(
+      `<div class="meta-item">
+        <span class="meta-label">Tags</span>
+        <span class="meta-value">${tagHtml}</span>
+      </div>`
+    );
+  }
+
+  // ── custom fields ─────────────────────────────────────────────────────────
+  const customFieldRows = (task.custom_fields ?? [])
+    .map((f) => {
+      const val = formatCustomFieldValue(f);
+      if (!val) { return ""; }
+      return `<div class="meta-item">
+        <span class="meta-label">${esc(f.name)}</span>
+        <span class="meta-value">${esc(val)}</span>
+      </div>`;
+    })
+    .filter(Boolean);
+
+  // ── description ───────────────────────────────────────────────────────────
+  const descHtml = task.description?.trim()
+    ? `<section class="section">
+        <h3>Description</h3>
+        <p class="description">${esc(task.description).replace(/\n/g, "<br>")}</p>
+      </section>`
+    : "";
+
+  // ── checklists ────────────────────────────────────────────────────────────
+  const checklistHtml = (task.checklists ?? [])
+    .map((cl) => {
+      const items = cl.items
+        .sort((a, b) => a.orderindex - b.orderindex)
+        .map(
+          (item) =>
+            `<li class="${item.resolved ? "resolved" : ""}">
+              <span class="check-icon">${item.resolved ? "✓" : "○"}</span>
+              ${esc(item.name)}
+            </li>`
+        )
+        .join("\n");
+      const total = cl.items.length;
+      const done = cl.items.filter((i) => i.resolved).length;
+      return `<section class="section">
+        <h3>${esc(cl.name)} <span class="progress">${done}/${total}</span></h3>
+        <ul class="checklist">${items}</ul>
+      </section>`;
+    })
+    .join("\n");
+
+  // ── assemble ──────────────────────────────────────────────────────────────
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      color: var(--vscode-editor-foreground);
+      background: var(--vscode-editor-background);
+      padding: 20px 24px;
+      line-height: 1.6;
+      max-width: 800px;
+    }
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+    h2 { font-size: 1.15em; margin: 0; }
+    .open-link {
+      font-size: 0.85em;
+      color: var(--vscode-textLink-foreground);
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .open-link:hover { text-decoration: underline; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px 16px;
+      margin-bottom: 20px;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .meta-label {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--vscode-descriptionForeground);
+    }
+    .meta-value { font-size: 0.9em; }
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 0.8em;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge.tag { font-weight: 400; }
+    .section { margin-top: 20px; }
+    .section h3 {
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--vscode-descriptionForeground);
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .progress {
+      font-size: 0.85em;
+      background: var(--vscode-badge-background);
+      color: var(--vscode-badge-foreground);
+      padding: 1px 6px;
+      border-radius: 8px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .description {
+      white-space: pre-wrap;
+      font-size: 0.92em;
+      line-height: 1.7;
+      margin: 0;
+    }
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .checklist li {
+      font-size: 0.92em;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .checklist li.resolved {
+      color: var(--vscode-disabledForeground);
+      text-decoration: line-through;
+    }
+    .check-icon { flex-shrink: 0; }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--vscode-panel-border);
+      margin: 20px 0 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>${esc(task.name)}</h2>
+    <a class="open-link" href="${esc(task.url)}">Open in ClickUp →</a>
+  </div>
+
+  <div class="meta-grid">
+    ${metaRows.join("\n    ")}
+    ${customFieldRows.join("\n    ")}
+  </div>
+
+  ${descHtml}
+  ${checklistHtml}
+</body>
+</html>`;
 }
 
 async function selectProjects(
