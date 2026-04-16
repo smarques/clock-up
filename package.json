@@ -3,6 +3,15 @@
   "displayName": "Clock Up",
   "description": "Track time on ClickUp tasks directly in VSCode via Clockify",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smarques/clock-up.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smarques/clock-up/issues"
+  },
+  "homepage": "https://github.com/smarques/clock-up#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
