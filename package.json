@@ -1,0 +1,123 @@
+{
+  "name": "clock-up",
+  "displayName": "Clock Up",
+  "description": "Track time on ClickUp tasks directly in VSCode via Clockify",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Clock Up",
+      "properties": {
+        "clockup.clockifyWorkspaceId": {
+          "type": "string",
+          "default": "",
+          "description": "Your Clockify workspace ID"
+        },
+        "clockup.clickupTeamId": {
+          "type": "string",
+          "default": "",
+          "description": "Your ClickUp team (workspace) ID"
+        },
+        "clockup.clickupApiKeyHint": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "_(Read-only)_ Obfuscated preview of your ClickUp API key. Set it via **Clock Up: Set ClickUp API Key**."
+        },
+        "clockup.clockifyApiKeyHint": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "_(Read-only)_ Obfuscated preview of your Clockify API key. Set it via **Clock Up: Set Clockify API Key**."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "clockup.setClickUpApiKey",
+        "title": "Clock Up: Set ClickUp API Key"
+      },
+      {
+        "command": "clockup.setClockifyApiKey",
+        "title": "Clock Up: Set Clockify API Key"
+      },
+      {
+        "command": "clockup.startTimer",
+        "title": "Clock Up: Start Timer",
+        "icon": "$(play)"
+      },
+      {
+        "command": "clockup.stopTimer",
+        "title": "Clock Up: Stop Timer",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "clockup.selectProjects",
+        "title": "Clock Up: Select Projects",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "clockup.refreshTasks",
+        "title": "Clock Up: Refresh Tasks",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "clockup-sidebar",
+          "title": "Clock Up",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "clockup-sidebar": [
+        {
+          "id": "clockup.tasksView",
+          "name": "Tasks"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "clockup.selectProjects",
+          "when": "view == clockup.tasksView",
+          "group": "navigation"
+        },
+        {
+          "command": "clockup.refreshTasks",
+          "when": "view == clockup.tasksView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "clockup.startTimer",
+          "when": "view == clockup.tasksView && viewItem == task",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "dev": "node esbuild.js --watch",
+    "lint": "eslint src --ext ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "npm run build",
+      "group": "build",
+      "presentation": {
+        "reveal": "silent"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "watch",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": "build",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "silent"
+      },
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "pattern": {
+            "regexp": "^(.*):(\\d+):(\\d+): (error|warning): (.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^> clock-up",
+            "endsPattern": "Watching for changes"
+          }
+        }
+      ]
+    }
+  ]
+}
