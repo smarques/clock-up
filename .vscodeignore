@@ -1,0 +1,11 @@
+.vscode/**
+node_modules/**
+src/**
+.gitignore
+.claude/**
+.codegraph/**
+*.code-workspace
+CLAUDE.md
+esbuild.js
+tsconfig.json
+dist/**/*.map
