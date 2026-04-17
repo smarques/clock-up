@@ -14,6 +14,7 @@ Track time on ClickUp tasks directly from VS Code, with entries logged automatic
 - **Task detail panel** — view status, priority, due date, estimate, assignees, tags, custom fields, description, and checklists in a side panel
 - **Clockify integration** — time entries are created automatically with correct start/end times and project association
 - **Secure key storage** — API keys are stored in the OS keychain via VS Code SecretStorage, never in plain settings
+- **Status management** — right-click any task to set its ClickUp status via Quick Pick; starting a timer automatically moves the task to *In Progress*
 - **Survives restarts** — active timer state is persisted across VS Code sessions
 
 ## Requirements
@@ -62,8 +63,9 @@ Run **Clock Up: Select Projects** from the Command Palette, or click the gear ic
 
 Open the **Clock Up** panel in the Activity Bar. It shows all tasks and subtasks from your selected ClickUp folder.
 
-- **Start timer:** Click the `▶` button next to any task or subtask
+- **Start timer:** Click the `▶` button next to any task or subtask — the task is automatically moved to *In Progress* in ClickUp
 - **Stop timer:** Click the status bar item at the bottom of the window (shows elapsed time and task name)
+- **Change status:** Right-click any task and select **Set Task Status** to pick from the available statuses for that list
 
 When you stop the timer, a time entry is created in Clockify with:
 - **Description:** AI-generated summary, or `#<taskId> <first words of task name>` as fallback
@@ -82,6 +84,7 @@ When you stop the timer, a time entry is created in Clockify with:
 | `Clock Up: Refresh Tasks` | Re-fetch the task list |
 | `Clock Up: Search Tasks` | Fuzzy-search all tasks by name, sprint, or status |
 | `Clock Up: Show Task Description` | Open the task detail panel |
+| `Clock Up: Set Task Status` | Change the ClickUp status of a task (right-click menu) |
 
 ## Notes
 
