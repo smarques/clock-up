@@ -70,6 +70,14 @@ export class TaskTreeProvider
     this._onDidChangeTreeData.fire(undefined);
   }
 
+  updateTaskInCache(taskId: string, status: string, color: string): void {
+    const task = this.allTasksCache.find((t) => t.id === taskId);
+    if (task) {
+      task.status = { status, color };
+      this._onDidChangeTreeData.fire(undefined);
+    }
+  }
+
   async getOrFetchAllTasks(): Promise<ClickUpTask[]> {
     if (this.allTasksCache.length > 0) {
       return this.allTasksCache;

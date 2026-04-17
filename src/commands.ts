@@ -14,7 +14,7 @@ import {
   getSelectedProject,
 } from "./state/timerState";
 import { createTimeEntry, getProjects } from "./api/clockify";
-import { getAllFolders, ClickUpTask, ClickUpCustomField } from "./api/clickup";
+import { getAllFolders, ClickUpTask, ClickUpCustomField, getListStatuses, updateTaskStatus } from "./api/clickup";
 import { TaskTreeItem, TaskTreeProvider } from "./views/taskTreeProvider";
 import { TimerStatusBar } from "./views/timerStatusBar";
 
@@ -76,6 +76,10 @@ export function registerCommands(
 
         statusBar.start();
         vscode.window.showInformationMessage(`Timer started: "${entryTitle}"`);
+
+        if (item.raw) {
+          autoSetInProgress(context, item.raw, treeProvider);
+        }
       }
     ),
 
@@ -89,6 +93,67 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand("clockup.refreshTasks", refreshTree),
+
+    vscode.commands.registerCommand(
+      "clockup.setTaskStatus",
+      async (item: TaskTreeItem) => {
+        if (!item.raw) {
+          return;
+        }
+
+        const apiKey = await getClickUpApiKey(context);
+        if (!apiKey) {
+          vscode.window.showErrorMessage(
+            "No ClickUp API key set. Run 'Clock Up: Set ClickUp API Key' first."
+          );
+          return;
+        }
+
+        let statuses;
+        try {
+          statuses = await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: "Loading statuses…" },
+            () => getListStatuses(apiKey, item.raw!.list.id)
+          );
+        } catch (err) {
+          vscode.window.showErrorMessage(
+            `Clock Up: ${err instanceof Error ? err.message : err}`
+          );
+          return;
+        }
+
+        type StatusPickItem = vscode.QuickPickItem & { status: string; color: string };
+        const items: StatusPickItem[] = statuses.map((s) => ({
+          label: s.status,
+          description: item.raw!.status.status === s.status ? "(current)" : undefined,
+          status: s.status,
+          color: s.color,
+        }));
+
+        const picked = await vscode.window.showQuickPick<StatusPickItem>(items, {
+          title: `Set status: ${item.label as string}`,
+          placeHolder: `Current: ${item.raw.status.status}`,
+        });
+        if (!picked || picked.status === item.raw.status.status) {
+          return;
+        }
+
+        try {
+          await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: "Updating status…" },
+            () => updateTaskStatus(apiKey, item.raw!.id, picked.status)
+          );
+          treeProvider.updateTaskInCache(item.raw.id, picked.status, picked.color);
+          vscode.window.showInformationMessage(
+            `Status updated to "${picked.status}" for "${item.label as string}".`
+          );
+        } catch (err) {
+          vscode.window.showErrorMessage(
+            `Clock Up: ${err instanceof Error ? err.message : err}`
+          );
+        }
+      }
+    ),
 
     vscode.commands.registerCommand("clockup.searchTasks", async () => {
       let tasks: ClickUpTask[];
@@ -634,6 +699,26 @@ async function generateEntryTitle(taskId: string, taskName: string, language: "e
     return trimmed ? `${prefix} ${trimmed}` : fallback;
   } catch {
     return fallback;
+  }
+}
+
+async function autoSetInProgress(
+  context: vscode.ExtensionContext,
+  task: ClickUpTask,
+  treeProvider: TaskTreeProvider
+): Promise<void> {
+  try {
+    const apiKey = await getClickUpApiKey(context);
+    if (!apiKey) { return; }
+
+    const statuses = await getListStatuses(apiKey, task.list.id);
+    const inProgress = statuses.find((s) => s.type === "in_progress");
+    if (!inProgress || inProgress.status === task.status.status) { return; }
+
+    await updateTaskStatus(apiKey, task.id, inProgress.status);
+    treeProvider.updateTaskInCache(task.id, inProgress.status, inProgress.color);
+  } catch {
+    // silent — don't interrupt the timer flow
   }
 }
 

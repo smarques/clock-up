@@ -88,6 +88,11 @@
         "command": "clockup.searchTasks",
         "title": "Clock Up: Search Tasks",
         "icon": "$(search)"
+      },
+      {
+        "command": "clockup.setTaskStatus",
+        "title": "Clock Up: Set Task Status",
+        "icon": "$(symbol-enum)"
       }
     ],
     "viewsContainers": {
@@ -130,6 +135,11 @@
           "command": "clockup.startTimer",
           "when": "view == clockup.tasksView && viewItem == task",
           "group": "inline@1"
+        },
+        {
+          "command": "clockup.setTaskStatus",
+          "when": "view == clockup.tasksView && viewItem == task",
+          "group": "1_actions@1"
         }
       ]
     }

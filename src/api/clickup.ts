@@ -79,9 +79,31 @@ export interface ClickUpTask {
   url: string;
 }
 
+export interface ClickUpStatus {
+  status: string;
+  color: string;
+  type: string;
+  orderindex: number;
+}
+
 async function request<T>(path: string, apiKey: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     headers: { Authorization: apiKey },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`ClickUp API error ${response.status}: ${text}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function put<T>(path: string, apiKey: string, body: unknown): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: "PUT",
+    headers: { Authorization: apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -153,6 +175,25 @@ async function getTasks(
     apiKey
   );
   return data.tasks;
+}
+
+export async function getListStatuses(
+  apiKey: string,
+  listId: string
+): Promise<ClickUpStatus[]> {
+  const data = await request<{ statuses?: ClickUpStatus[] }>(
+    `/list/${listId}`,
+    apiKey
+  );
+  return (data.statuses ?? []).sort((a, b) => a.orderindex - b.orderindex);
+}
+
+export async function updateTaskStatus(
+  apiKey: string,
+  taskId: string,
+  status: string
+): Promise<ClickUpTask> {
+  return put<ClickUpTask>(`/task/${taskId}`, apiKey, { status });
 }
 
 export interface TaskGroup {
